@@ -56,35 +56,62 @@ app.get("/auth/strava/callback", async (req, res) => {
 
 // Récupère les dernières activités d'un utilisateur via son email
 app.get("/strava/activities", async (req, res) => {
-  const { email } = req.query;
-  if (!email) return res.status(400).send("Email manquant");
-
-  const { data, error } = await supabase
-    .from('users_tokens')
-    .select('access_token')
-    .eq('email', email)
-    .single();
-
-  if (error || !data) {
-    console.error("Erreur token :", error);
-    return res.status(404).send("Utilisateur non trouvé");
-  }
-
-  try {
-    const response = await axios.get("https://www.strava.com/api/v3/athlete/activities", {
-      headers: {
-        Authorization: `Bearer ${data.access_token}`,
-      },
-      params: { per_page: 3 },
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error("Erreur récupération activités :", err.response?.data || err.message);
-    res.status(500).send("Erreur récupération activités");
-  }
-});
-
-app.listen(port, () => {
-  console.log(`✅ Serveur prêt sur http://localhost:${port}`);
-});
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email manquant",
+      });
+    }
+  
+    const { data, error } = await supabase
+      .from('users_tokens')
+      .select('access_token')
+      .eq('email', email)
+      .single();
+  
+    if (error || !data) {
+      console.error("Erreur token :", error);
+      return res.status(400).json({
+        success: false,
+        error: "Utilisateur non trouvé ou identifiant incorrect.",
+      });
+    }
+  
+    try {
+      const response = await axios.get("https://www.strava.com/api/v3/athlete/activities", {
+        headers: {
+          Authorization: `Bearer ${data.access_token}`,
+        },
+        params: { per_page: 3 },
+      });
+  
+      const activities = response.data;
+  
+      if (!activities || activities.length === 0) {
+        return res.status(200).json({
+          success: false,
+          error: "Aucune activité trouvée pour cet utilisateur.",
+        });
+      }
+  
+      // Formatage optionnel ici si tu veux uniformiser
+      const formatted = activities.map((a) => ({
+        name: a.name,
+        distance: a.distance,
+        moving_time: a.moving_time,
+        start_date: a.start_date,
+      }));
+  
+      res.json({
+        success: true,
+        activities: formatted,
+      });
+    } catch (err) {
+      console.error("Erreur récupération activités :", err.response?.data || err.message);
+      res.status(500).json({
+        success: false,
+        error: "Erreur lors de la récupération des activités Strava.",
+      });
+    }
+  });  
