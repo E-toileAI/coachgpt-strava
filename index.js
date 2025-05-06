@@ -116,3 +116,8 @@ app.get("/strava/activities", async (req, res) => {
       });
     }
   });  
+  
+  app.listen(port, () => {
+    console.log(`✅ Serveur prêt sur http://localhost:${port}`);
+  });
+  
