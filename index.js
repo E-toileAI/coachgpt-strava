@@ -69,8 +69,9 @@ app.get("/strava/activities", async (req, res) => {
       .from('users_tokens')
       .select('access_token')
       .eq('email', email)
-      .single();
-  
+      .limit(1)
+      .maybeSingle(); // évite l'erreur s’il n’y a rien
+    
     if (error || !data) {
       console.error("Erreur token :", error);
       return res.status(400).json({
